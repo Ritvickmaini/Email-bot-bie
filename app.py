@@ -24,14 +24,13 @@ threading.Thread(target=heartbeat, daemon=True).start()
 # === CONFIGURATION ===
 SERVICE_ACCOUNT_FILE = "/etc/secrets/credentials.json"
 SHEET_ID = "1Mm-v9NE1rycySiQaKG3Lr2heRcEtlc1XQbuCrOOqT8I"
-LEADS_TAB = "Email-campaigns"
-TEMPLATES_TAB = "Templates"
+LEADS_TAB = "BIE"
+TEMPLATES_TAB = "Templates-BIE"
 
-SMTP_SERVER = "mail.southamptonbusinessexpo.com"
+SMTP_SERVER = "mail.businessinnovationexpo.com"
 SMTP_PORT = 587
-IMAP_SERVER = "mail.southamptonbusinessexpo.com"
-SENDER_EMAIL = "mike@southamptonbusinessexpo.com"
-SENDER_PASSWORD = "bi,dEd4qir.p"
+SENDER_EMAIL = "mark@businessinnovationexpo.com"
+SENDER_PASSWORD = "oUt5M90u-zgl6b@3"
 
 UNSUBSCRIBE_API = "https://unsubscribe-uofn.onrender.com/get_unsubscribes"
 TRACKING_BASE = "https://tracking-enfw.onrender.com"
@@ -119,22 +118,6 @@ def mark_unsubscribed_in_sheet(unsubscribed_set):
     except Exception as e:
         print(f"❌ Failed to process unsubscribes: {e}", flush=True)
 
-def save_to_sent_folder(raw_msg):
-    """Save sent email to the correct IMAP Sent folder (INBOX.Sent)"""
-    try:
-        with imaplib.IMAP4_SSL(IMAP_SERVER, 993) as imap:
-            imap.login(SENDER_EMAIL, SENDER_PASSWORD)
-            sent_folder = "INBOX.Sent"
-            imap.append(
-                sent_folder,
-                "",
-                imaplib.Time2Internaldate(time.time()),
-                raw_msg.encode("utf-8")
-            )
-            print(f"📥 Successfully saved email in '{sent_folder}' folder.", flush=True)
-    except Exception as e:
-        pass
-
 def send_email(recipient, first_name, subject, html_body):
     """Send personalized email and save to Sent folder"""
     msg = MIMEMultipart("alternative")
@@ -145,15 +128,34 @@ def send_email(recipient, first_name, subject, html_body):
     encoded_email = urllib.parse.quote_plus(recipient)
     encoded_subject = urllib.parse.quote_plus(subject)
     encoded_event_url = urllib.parse.quote_plus(
-        "https://SOXPO26.eventbrite.co.uk/?aff=EMAILCAMPAIGNS"
+        "https://BusinessInnovationExpo03Mar26Visitor.eventbrite.co.uk/?aff=emailbot"
     )
 
     tracking_link = f"{TRACKING_BASE}/track/click?email={encoded_email}&url={encoded_event_url}&subject={encoded_subject}"
     tracking_pixel = f'<img src="{TRACKING_BASE}/track/open?email={encoded_email}&subject={encoded_subject}" width="1" height="1" style="display:block;margin:0 auto;" alt="." />'
-    unsubscribe_link = f"{UNSUBSCRIBE_BASE}/unsubscribe?email={encoded_email}"
+    unsubscribe_link = f"{UNSUBSCRIBE_BASE}/unsubscribe"
 
     first_name = (first_name or "").strip() or "there"
     html_body = html_body.replace("{%name%}", first_name)
+
+    cta_button = f"""
+    <div style="text-align:left;margin:30px 0;">
+        <a href="{tracking_link}" 
+           style="background-color:#d93025;color:white;padding:12px 28px;
+                  text-decoration:none;border-radius:6px;display:inline-block;
+                  font-weight:bold;font-size:16px;">
+            🎟️ Book Your Visitor Ticket
+        </a>
+    </div>"""
+
+    signature_block = """
+    <br><br>
+    <div style="color:#000;font-weight:bold;">
+        Best regards,<br>
+        <strong>Mark Randell</strong><br>
+        Marketing Executive | B2B Growth Expo<br>
+        <a href="mailto:mark@businessinnovationexpo.com" style="color:#000;text-decoration:none;">mark@businessinnovationexpo.com</a><br>
+    </div>"""
 
     unsubscribe_section = f"""
     <hr style="margin-top:30px;border:0;border-top:1px solid #ccc;">
@@ -166,7 +168,8 @@ def send_email(recipient, first_name, subject, html_body):
         <div style="max-width:600px;margin:auto;border:1px solid #ddd;border-radius:8px;padding:20px;">
           <p>Hi {first_name},</p>
           <p>{html_body}</p>
-          
+          {cta_button}
+          {signature_block}
           {unsubscribe_section}
           {tracking_pixel}
         </div>
@@ -181,7 +184,6 @@ def send_email(recipient, first_name, subject, html_body):
             server.login(SENDER_EMAIL, SENDER_PASSWORD)
             server.sendmail(SENDER_EMAIL, recipient, raw_msg)
         print(f"✅ Sent: {recipient}", flush=True)
-        save_to_sent_folder(raw_msg)
         return True
     except Exception as e:
         print(f"❌ Failed {recipient}: {e}", flush=True)
